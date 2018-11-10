@@ -1,0 +1,74 @@
+branches:
+  only:
+  - master
+  - staged
+sudo: required
+language: android
+android:
+  components:
+    - tools
+    - build-tools-24.0.2
+    - android-26
+    - tools
+services:
+- docker
+before_install:
+- openssl aes-256-cbc -K $encrypted_821ed9edb936_key -iv $encrypted_821ed9edb936_iv -in cafematinal_keystore.jks.enc -out cafematinal_keystore.jks -d
+
+- ls -la $TRAVIS_BUILD_DIR
+#- cp $TRAVIS_BUILD_DIR/.keystore $HOME
+- ls -la $HOME
+- jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore cafematinal_keystore.jks -storepass $store_password -keypass $keystore_password test-release-unsigned.apk $keystore_alias
+- jarsigner -verify test-release-unsigned.apk
+- "${ANDROID_HOME}/build-tools/24.0.2/zipalign -v 4 test-release-unsigned.apk test_app.apk"
+
+- echo "Executing the before install commands"
+- docker pull fullbright/ionic
+- git clone https://github.com/BrightSoftwares/derpupl_cafe_matinal.git
+- docker ps -a
+script:
+- echo "Executing release commands"
+- docker run -v $TRAVIS_BUILD_DIR:/myApp:rw fullbright/ionic /bin/sh -c "cd /myApp;
+  npm install; ionic cordova build android --prod --release"
+- docker ps -a
+- echo "we are in the directory $PWD and the Travis build directory is $TRAVIS_BUILD_DIR
+  "
+- ls -la $PWD
+- ls -la $TRAVIS_BUILD_DIR
+after_success:
+- "./travis_merge_script.sh"
+before_deploy:
+- git tag "cafe-matinal-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
+- ls -la $PWD
+- ls -la $TRAVIS_BUILD_DIR
+- ls -la $TRAVIS_BUILD_DIR/platforms/android/app/build/outputs/apk/release/
+- cp $TRAVIS_BUILD_DIR/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+  $TRAVIS_BUILD_DIR/cafematinal-release-unsigned.apk
+- ls -la $TRAVIS_BUILD_DIR
+- ls -la $TRAVIS_BUILD_DIR/platforms/android/app/build/outputs/apk/release/
+#- cp $TRAVIS_BUILD_DIR/.keystore $HOME
+- jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore cafematinal_keystore.jks -storepass $store_password -keypass $keystore_password cafematinal-release-unsigned.apk $keystore_alias
+- jarsigner -verify cafematinal-release-unsigned.apk
+- "${ANDROID_HOME}/build-tools/24.0.2/zipalign -v 4 cafematinal-release-unsigned.apk cafematinal_app.apk"
+deploy:
+  provider: releases
+  api_key:
+    secure: PRdw/zavHXzGNK4wuJunotQMxQb3s/Qwkvb8YQXLX78avaIyFKa7awYWXqb+tCYkiik2RwE6Bbx4ZQxMs/0NUgKbtMJMLPIVh0hqtHG4kfim4CAORL02MbeP0txS6FAkqLUxBtdCD5TzNUBMK4P2zZexLwgMkP5VjlWFvQl2X4ZkTvknbq2h/O3VHJiTXJtL39sRi5Vo9Xo6bRtkD1+khpNYUSe3UKxKRdPBATT7vkZiFhk5l4Z292nRlR4ZjXi+vPRj8N/LW06hAW3mwVrHl12JlNPiuPg3A3jKkJzmBMQ+MRVM9qRLF7Mag0g/t/2FloSJ3EU2FzRIjk92bRA0ks7/TVC3MLZ26xWndfMG8feiD/R2uc6NPGpxb8uevhYbCd26i3yVS7ebOSgJWQ/bF1lSve9A4zG4T33hcOzKsFovEIPtVPuqPZIq66QSvqgZPqrLCYlTnXoU/fdhPEt+4f+27wBhL6SO8m5mPuXfGrzTmB+PREzPlLq7f3QZIXI/z19R5mrU7EmzIo8fG6trW6b/c6xzwi3FRSw+UNa4Xr2mu1Ul/qISbPpuuy454MPsH3e9XZJh6wsZqgS6ClT6sf793Dy8Baz5SHBIU/7CPgZNuZRgzMrYlKSB5bb/EUqu3GKD2YR+/2Ms26cL+gN+7kt1LSII+rMoiBtoON8wp00=
+  #file: platforms/android/app/build/outputs/apk/release/*.apk
+  #file: /myApp/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+  file: 
+    - $TRAVIS_BUILD_DIR/cafematinal-release-unsigned.apk
+    #- $TRAVIS_BUILD_DIR/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+    - $TRAVIS_BUILD_DIR/cafematinal_app.apk
+    #- $TRAVIS_BUILD_DIR/test_app.apk
+    #- $TRAVIS_BUILD_DIR/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+    #- $PWD/derpupl_cafe_matinal/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+    #- $TRAVIS_BUILD_DIR/derpupl_cafe_matinal/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+    #- $PWD/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+    #- /myApp/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+    
+  
+  # Do not clean the files generated to be able to upload them
+  skip_cleanup: true
+  on:
+    repo: BrightSoftwares/derpupl_cafe_matinal

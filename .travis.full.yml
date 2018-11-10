@@ -1,0 +1,90 @@
+language: android
+dist: xenial
+sudo: true
+android:
+  components:
+  - tools
+  - platform-tools
+  - tools
+  - build-tools-26.0.2
+  - android-26
+  - extra-google-google_play_services
+  - extra-google-m2repository
+  - extra-android-m2repository
+addons:
+  apt:
+    sources:
+    - sourceline: deb https://dl.yarnpkg.com/debian/ stable main
+      key_url: https://dl.yarnpkg.com/debian/pubkey.gpg
+    packages:
+    - oracle-java8-installer
+    - oracle-java8-set-default
+    - yarn
+    - jq
+licenses:
+- android-sdk-preview-license-.+
+- android-sdk-license-.+
+- google-gdk-license-.+
+
+env:
+  global:
+  - DEBIAN_FRONTEND=noninteractive
+  - ANDROID_HOME=/opt/android-sdk-linux
+  - NPM_VERSION=6.0.1
+  - IONIC_VERSION=3.20.0
+  - CORDOVA_VERSION=8.0.0
+  - YARN_VERSION=1.6.0
+  - GRADLE_VERSION=4.4.1
+    # Fix for the issue with Selenium, as described here:
+    # https://github.com/SeleniumHQ/docker-selenium/issues/87
+  - DBUS_SESSION_BUS_ADDRESS=/dev/null
+
+
+before_install:
+  - echo "Running before install section"
+  - sudo apt-get update 
+  - sudo apt-get install -y curl build-essential
+  - sudo curl -sL https://deb.nodesource.com/setup_8.x | bash - 
+  - sudo apt-get update 
+  - sudo apt-get install -y nodejs 
+  - sudo npm install -g npm@"$NPM_VERSION" cordova@"$CORDOVA_VERSION" ionic@"$IONIC_VERSION" yarn@"$YARN_VERSION"
+  - sudo npm cache clear --force
+  - sudo wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  - sudo dpkg --unpack google-chrome-stable_current_amd64.deb
+  - sudo apt-get install -f -y 
+  - sudo apt-get clean
+  - sudo rm google-chrome-stable_current_amd64.deb 
+  - mkdir Sources
+  - mkdir -p /root/.cache/yarn/
+
+    # Font libraries
+  - sudo apt-get -qqy install fonts-ipafont-gothic xfonts-100dpi xfonts-75dpi xfonts-cyrillic xfonts-scalable libfreetype6 libfontconfig 
+
+    # install python-software-properties (so you can do add-apt-repository)
+  - sudo apt-get update && apt-get install -y -q python-software-properties software-properties-common
+  - sudo add-apt-repository "deb http://ppa.launchpad.net/webupd8team/java/ubuntu xenial main" -y
+  - sudo echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
+  - sudo apt-get update && apt-get -y install oracle-java8-installer 
+
+    # System libs for android enviroment
+  - sudo echo ANDROID_HOME="${ANDROID_HOME}" >> /etc/environment 
+  - sudo dpkg --add-architecture i386
+  - sudo apt-get update
+  - sudo apt-get install -y --force-yes expect ant wget libc6-i386 lib32stdc++6 lib32gcc1 lib32ncurses5 lib32z1 qemu-kvm kmod
+  - sudo apt-get clean
+  - sudo apt-get autoclean
+  - sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ 
+before_script:
+  echo "Running before script section"
+script:
+  ionic cordova build android --prod --release
+deploy:
+  provider: releases
+  api_key:
+    secure: PRdw/zavHXzGNK4wuJunotQMxQb3s/Qwkvb8YQXLX78avaIyFKa7awYWXqb+tCYkiik2RwE6Bbx4ZQxMs/0NUgKbtMJMLPIVh0hqtHG4kfim4CAORL02MbeP0txS6FAkqLUxBtdCD5TzNUBMK4P2zZexLwgMkP5VjlWFvQl2X4ZkTvknbq2h/O3VHJiTXJtL39sRi5Vo9Xo6bRtkD1+khpNYUSe3UKxKRdPBATT7vkZiFhk5l4Z292nRlR4ZjXi+vPRj8N/LW06hAW3mwVrHl12JlNPiuPg3A3jKkJzmBMQ+MRVM9qRLF7Mag0g/t/2FloSJ3EU2FzRIjk92bRA0ks7/TVC3MLZ26xWndfMG8feiD/R2uc6NPGpxb8uevhYbCd26i3yVS7ebOSgJWQ/bF1lSve9A4zG4T33hcOzKsFovEIPtVPuqPZIq66QSvqgZPqrLCYlTnXoU/fdhPEt+4f+27wBhL6SO8m5mPuXfGrzTmB+PREzPlLq7f3QZIXI/z19R5mrU7EmzIo8fG6trW6b/c6xzwi3FRSw+UNa4Xr2mu1Ul/qISbPpuuy454MPsH3e9XZJh6wsZqgS6ClT6sf793Dy8Baz5SHBIU/7CPgZNuZRgzMrYlKSB5bb/EUqu3GKD2YR+/2Ms26cL+gN+7kt1LSII+rMoiBtoON8wp00=
+  file: platforms/android/app/build/outputs/apk/release/*.apk
+  # Do not clean the files generated to be able to upload them
+  skip_cleanup: true
+  on:
+    repo: BrightSoftwares/derpupl_cafe_matinal
